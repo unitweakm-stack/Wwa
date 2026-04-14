@@ -10,7 +10,7 @@ import logging
 from datetime import datetime, timedelta
 from flask import Flask
 
-# Logging sozlamalari (Render loglarida xatoliklarni ko'rish uchun)
+# Logging sozlamalari
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from telegram import Update
-from telegram.constants import ChatAction
+from telegram.constants import ChatAction, ParseMode
 from telegram.ext import Application, MessageHandler, ContextTypes, filters, CommandHandler
 
 # --- WEB SERVER (Render 24/7 uchun) ---
@@ -161,6 +161,9 @@ def clean_text(s: str) -> str:
     s = re.sub(r"\n{3,}", "\n\n", s)
     return s.strip()
 
+def html_escape(s: str) -> str:
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
 def ocr_space_request(image_bytes: bytes, filename: str) -> str:
     api_key = os.getenv("OCR_SPACE_API_KEY", "").strip()
     if not api_key:
@@ -239,11 +242,18 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             await update.message.reply_text("❌ Rasmda matn topilmadi.")
         else:
             cleaned = clean_text(text)
-            if len(cleaned) > 4000:
-                for i in range(0, len(cleaned), 4000):
-                    await update.message.reply_text(cleaned[i:i+4000])
+            # HTML escape qilish (xatolik bermasligi uchun)
+            escaped_text = html_escape(cleaned)
+            # Nusxa olish oson bo'lishi uchun <code> tegiga o'rash
+            formatted_text = f"<code>{escaped_text}</code>"
+            
+            if len(formatted_text) > 4000:
+                # Agar matn juda uzun bo'lsa, bo'laklab yuborish
+                for i in range(0, len(cleaned), 3500):
+                    chunk = html_escape(cleaned[i:i+3500])
+                    await update.message.reply_text(f"<code>{chunk}</code>", parse_mode=ParseMode.HTML)
             else:
-                await update.message.reply_text(cleaned)
+                await update.message.reply_text(formatted_text, parse_mode=ParseMode.HTML)
     except Exception as e:
         logger.error(f"OCR xatoligi: {e}")
         await update.message.reply_text(f"❌ Xatolik yuz berdi: {str(e)}")
