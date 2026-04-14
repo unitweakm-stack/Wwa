@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: telegram-ocr-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DEFAULT_LANG
+        value: tur
+      - key: OCR_ENGINE
+        value: "2"
+      - key: OCR_SCALE
+        value: "true"
+      - key: OCR_DETECT_ORIENTATION
+        value: "true"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: OCR_SPACE_API_KEY
+        sync: false
